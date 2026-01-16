@@ -6,27 +6,19 @@ describe('ragQuerySchema', () => {
     it('should parse valid query with all parameters', () => {
       const input = {
         q: 'What is AI?',
-        service: 'custom',
+        service: 'scientific',
         maxResults: '10',
       };
 
       const result = ragQuerySchema.parse(input);
 
       expect(result.q).toBe('What is AI?');
-      expect(result.service).toBe('custom');
+      expect(result.service).toBe('scientific');
       expect(result.maxResults).toBe(10);
     });
 
-    it('should use default service when not provided', () => {
-      const input = { q: 'Test query' };
-
-      const result = ragQuerySchema.parse(input);
-
-      expect(result.service).toBe('general');
-    });
-
     it('should use default maxResults when not provided', () => {
-      const input = { q: 'Test query' };
+      const input = { q: 'Test query', service: 'general' };
 
       const result = ragQuerySchema.parse(input);
 
@@ -34,7 +26,7 @@ describe('ragQuerySchema', () => {
     });
 
     it('should coerce string maxResults to number', () => {
-      const input = { q: 'Test', maxResults: '7' };
+      const input = { q: 'Test', service: 'general', maxResults: '7' };
 
       const result = ragQuerySchema.parse(input);
 
@@ -43,7 +35,7 @@ describe('ragQuerySchema', () => {
     });
 
     it('should accept minimum valid query length', () => {
-      const input = { q: 'a' };
+      const input = { q: 'a', service: 'general' };
 
       const result = ragQuerySchema.parse(input);
 
@@ -52,7 +44,7 @@ describe('ragQuerySchema', () => {
 
     it('should accept maximum valid query length', () => {
       const longQuery = 'a'.repeat(1000);
-      const input = { q: longQuery };
+      const input = { q: longQuery, service: 'general' };
 
       const result = ragQuerySchema.parse(input);
 
@@ -60,7 +52,7 @@ describe('ragQuerySchema', () => {
     });
 
     it('should accept minimum maxResults value', () => {
-      const input = { q: 'Test', maxResults: '1' };
+      const input = { q: 'Test', service: 'general', maxResults: '1' };
 
       const result = ragQuerySchema.parse(input);
 
@@ -68,7 +60,7 @@ describe('ragQuerySchema', () => {
     });
 
     it('should accept maximum maxResults value', () => {
-      const input = { q: 'Test', maxResults: '20' };
+      const input = { q: 'Test', service: 'general', maxResults: '20' };
 
       const result = ragQuerySchema.parse(input);
 
@@ -78,37 +70,49 @@ describe('ragQuerySchema', () => {
 
   describe('invalid inputs', () => {
     it('should reject empty query', () => {
-      const input = { q: '' };
+      const input = { q: '', service: 'general' };
 
       expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
     });
 
     it('should reject missing query', () => {
-      const input = { service: 'test' };
+      const input = { service: 'general' };
+
+      expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
+    });
+
+    it('should reject missing service', () => {
+      const input = { q: 'Test query' };
+
+      expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
+    });
+
+    it('should reject empty service', () => {
+      const input = { q: 'Test query', service: '' };
 
       expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
     });
 
     it('should reject query that is too long', () => {
-      const input = { q: 'a'.repeat(1001) };
+      const input = { q: 'a'.repeat(1001), service: 'general' };
 
       expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
     });
 
     it('should reject maxResults below minimum', () => {
-      const input = { q: 'Test', maxResults: '0' };
+      const input = { q: 'Test', service: 'general', maxResults: '0' };
 
       expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
     });
 
     it('should reject maxResults above maximum', () => {
-      const input = { q: 'Test', maxResults: '21' };
+      const input = { q: 'Test', service: 'general', maxResults: '21' };
 
       expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
     });
 
     it('should reject negative maxResults', () => {
-      const input = { q: 'Test', maxResults: '-1' };
+      const input = { q: 'Test', service: 'general', maxResults: '-1' };
 
       expect(() => ragQuerySchema.parse(input)).toThrow(ZodError);
     });
@@ -116,7 +120,7 @@ describe('ragQuerySchema', () => {
 
   describe('error messages', () => {
     it('should provide meaningful error for empty query', () => {
-      const input = { q: '' };
+      const input = { q: '', service: 'general' };
 
       try {
         ragQuerySchema.parse(input);
@@ -129,7 +133,7 @@ describe('ragQuerySchema', () => {
     });
 
     it('should provide meaningful error for long query', () => {
-      const input = { q: 'a'.repeat(1001) };
+      const input = { q: 'a'.repeat(1001), service: 'general' };
 
       try {
         ragQuerySchema.parse(input);
@@ -138,6 +142,21 @@ describe('ragQuerySchema', () => {
         expect(error).toBeInstanceOf(ZodError);
         const zodError = error as ZodError;
         expect(zodError.errors[0].message).toContain('Query too long');
+      }
+    });
+
+    it('should provide meaningful error for missing service', () => {
+      const input = { q: 'Test' };
+
+      try {
+        ragQuerySchema.parse(input);
+        fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ZodError);
+        const zodError = error as ZodError;
+        expect(zodError.errors.some((e) => e.path.includes('service'))).toBe(
+          true
+        );
       }
     });
   });

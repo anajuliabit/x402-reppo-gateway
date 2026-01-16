@@ -20,8 +20,8 @@ describe('MockReppoService', () => {
 
       expect(response).toBeDefined();
       expect(response.data).toHaveLength(3);
-      expect(response.sources).toBeDefined();
-      expect(response.sources.length).toBeGreaterThan(0);
+      expect(response.subnetResponses).toBeDefined();
+      expect(response.subnetResponses.length).toBeGreaterThan(0);
       expect(response.confidence).toBeGreaterThan(0);
       expect(response.confidence).toBeLessThanOrEqual(1);
       expect(response.processingTime).toBeGreaterThan(0);
@@ -29,7 +29,7 @@ describe('MockReppoService', () => {
 
     it('should respect maxResults parameter', async () => {
       const request: RFDRequest = {
-        service: 'test',
+        service: 'general',
         query: 'Test query',
         maxResults: 2,
       };
@@ -65,7 +65,7 @@ describe('MockReppoService', () => {
     it('should include query in result text', async () => {
       const query = 'What is machine learning?';
       const request: RFDRequest = {
-        service: 'ai',
+        service: 'scientific',
         query,
         maxResults: 1,
       };
@@ -75,8 +75,8 @@ describe('MockReppoService', () => {
       expect(response.data[0].text).toContain(query);
     });
 
-    it('should include service in result source', async () => {
-      const serviceName = 'custom-service';
+    it('should include structured source in results', async () => {
+      const serviceName = 'scientific';
       const request: RFDRequest = {
         service: serviceName,
         query: 'Test',
@@ -85,22 +85,40 @@ describe('MockReppoService', () => {
 
       const response = await service.broadcastRFD(request);
 
-      expect(response.data[0].source).toContain(serviceName);
-      expect(response.data[0].source).toMatch(/^reppo:custom-service:subnet-\d+$/);
+      expect(response.data[0].source).toHaveProperty('subnet');
+      expect(response.data[0].source).toHaveProperty('document');
+      expect(response.data[0].source).toHaveProperty('uri');
+      expect(response.data[0].source.uri).toContain(serviceName);
     });
 
-    it('should return decreasing scores for results', async () => {
+    it('should use service-specific subnets for known services', async () => {
       const request: RFDRequest = {
-        service: 'general',
+        service: 'scientific',
         query: 'Test',
         maxResults: 3,
       };
 
       const response = await service.broadcastRFD(request);
 
-      for (let i = 1; i < response.data.length; i++) {
-        expect(response.data[i].score).toBeLessThan(response.data[i - 1].score);
-      }
+      // Scientific service uses subnet-3 and subnet-7
+      const subnets = response.subnetResponses.map((r) => r.subnet);
+      expect(subnets).toContain('subnet-3');
+      expect(subnets).toContain('subnet-7');
+    });
+
+    it('should use default subnets for unknown services', async () => {
+      const request: RFDRequest = {
+        service: 'unknown-service',
+        query: 'Test',
+        maxResults: 3,
+      };
+
+      const response = await service.broadcastRFD(request);
+
+      // Unknown services use default subnets
+      const subnets = response.subnetResponses.map((r) => r.subnet);
+      expect(subnets).toContain('subnet-1');
+      expect(subnets).toContain('subnet-2');
     });
 
     it('should include metadata in results', async () => {
@@ -127,9 +145,23 @@ describe('MockReppoService', () => {
 
       const response = await service.broadcastRFD(request);
 
-      // Mock service has 100-300ms simulated delay
-      expect(response.processingTime).toBeGreaterThanOrEqual(100);
+      // Mock service has 50-150ms simulated delay per subnet
+      expect(response.processingTime).toBeGreaterThanOrEqual(50);
       expect(response.processingTime).toBeLessThan(500);
+    });
+
+    it('should include response time per subnet', async () => {
+      const request: RFDRequest = {
+        service: 'general',
+        query: 'Test',
+        maxResults: 1,
+      };
+
+      const response = await service.broadcastRFD(request);
+
+      for (const subnetResponse of response.subnetResponses) {
+        expect(subnetResponse.responseTime).toBeGreaterThan(0);
+      }
     });
   });
 });

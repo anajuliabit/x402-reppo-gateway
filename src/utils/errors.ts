@@ -34,3 +34,9 @@ export class ReppoServiceError extends AppError {
     super(message, 503);
   }
 }
+
+export class ServiceNotFoundError extends AppError {
+  constructor(serviceId: string) {
+    super(`Service not found: ${serviceId}`, 400);
+  }
+}

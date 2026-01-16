@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/error.js';
 import { requestLogger } from './middleware/logging.js';
 import { healthRouter } from './routes/health.js';
 import { ragRouter } from './routes/rag/index.js';
+import { servicesHandler } from './routes/rag/services.js';
 
 export function createServer(): Application {
   const app = express();
@@ -22,6 +23,9 @@ export function createServer(): Application {
 
   // Health check endpoints (no payment required)
   app.use('/health', healthRouter);
+
+  // Service catalog endpoint (no payment required - free)
+  app.get('/api/rag/services', servicesHandler);
 
   // x402 payment middleware (protects routes below)
   app.use(payment);

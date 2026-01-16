@@ -4,16 +4,28 @@ export interface RFDRequest {
   maxResults?: number;
 }
 
+export interface RFDResultSource {
+  subnet: string;
+  document: string;
+  uri: string;
+}
+
 export interface RFDResult {
   text: string;
   score: number;
-  source: string;
+  source: RFDResultSource;
   metadata?: Record<string, unknown>;
+}
+
+export interface SubnetResponse {
+  subnet: string;
+  results: RFDResult[];
+  responseTime: number;
 }
 
 export interface RFDResponse {
   data: RFDResult[];
-  sources: string[];
+  subnetResponses: SubnetResponse[];
   confidence: number;
   processingTime: number;
 }

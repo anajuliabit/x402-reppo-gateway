@@ -60,11 +60,51 @@ async function main() {
     console.log('Status: FAIL\n');
   }
 
-  // Test 2: RAG query with payment
-  console.log('--- Test 2: RAG Query (with payment) ---');
+  // Test 2: Service catalog (no payment required)
+  console.log('--- Test 2: Service Catalog (free) ---');
+  try {
+    const servicesRes = await fetch(`${GATEWAY_URL}/api/rag/services`);
+    const servicesData = await servicesRes.json();
+    console.log('Services:', JSON.stringify(servicesData, null, 2));
+    console.log('Status: PASS\n');
+  } catch (error) {
+    console.error('Service catalog failed:', error);
+    console.log('Status: FAIL\n');
+  }
+
+  // Test 3: RAG query without service (should return 400)
+  console.log('--- Test 3: RAG Query without service (should fail) ---');
   try {
     const query = encodeURIComponent('What is machine learning?');
-    const url = `${GATEWAY_URL}/api/rag/query?q=${query}&maxResults=3`;
+    const url = `${GATEWAY_URL}/api/rag/query?q=${query}`;
+
+    console.log(`Request: GET ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    console.log(`Response status: ${response.status}`);
+    if (response.status === 400) {
+      console.log('Status: PASS - Correctly rejected without service\n');
+    } else if (response.status === 402) {
+      console.log('Status: PASS - Got 402 (payment middleware reached first)\n');
+    } else {
+      const body = await response.text();
+      console.log('Body:', body);
+      console.log('Status: UNEXPECTED\n');
+    }
+  } catch (error) {
+    console.error('Test failed:', error);
+    console.log('Status: FAIL\n');
+  }
+
+  // Test 4: RAG query with payment
+  console.log('--- Test 4: RAG Query with service (with payment) ---');
+  try {
+    const query = encodeURIComponent('What is machine learning?');
+    const service = 'scientific';
+    const url = `${GATEWAY_URL}/api/rag/query?q=${query}&service=${service}&maxResults=3`;
 
     console.log(`Request: GET ${url}`);
     console.log('Step 1: Making initial request...');
@@ -85,13 +125,15 @@ async function main() {
     console.log('Step 2: Got 402 Payment Required, creating payment...');
 
     // Extract payment requirements from header
-    const paymentRequiredHeader = initialResponse.headers.get('PAYMENT-REQUIRED');
+    const paymentRequiredHeader =
+      initialResponse.headers.get('PAYMENT-REQUIRED');
     if (!paymentRequiredHeader) {
       throw new Error('No PAYMENT-REQUIRED header in 402 response');
     }
 
     const paymentRequired = decodePaymentRequiredHeader(paymentRequiredHeader);
     console.log('Payment required:', JSON.stringify(paymentRequired, null, 2));
+    console.log(`Service: ${service}, Price: ${paymentRequired.accepts[0]?.price}`);
 
     // Create payment payload
     console.log('\nStep 3: Signing payment...');
@@ -115,6 +157,14 @@ async function main() {
       const data = await paidResponse.json();
       console.log('\nResponse:', JSON.stringify(data, null, 2));
       console.log('\nStatus: PASS - Payment successful!');
+
+      // Verify response structure
+      console.log('\n--- Response Verification ---');
+      console.log(`Service: ${data.service}`);
+      console.log(`Query: ${data.query}`);
+      console.log(`Results: ${data.results?.length || 0}`);
+      console.log(`Subnets: ${data.provenance?.subnets?.join(', ')}`);
+      console.log(`Price: ${data.pricing?.price}`);
     } else {
       const errorText = await paidResponse.text();
       console.log(`Response status: ${paidResponse.status}`);
