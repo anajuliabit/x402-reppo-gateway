@@ -14,9 +14,17 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:client": "tsx scripts/test-client.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["x402", "reppo", "gateway", "payments", "ai", "rag"],
+  "keywords": [
+    "x402",
+    "reppo",
+    "gateway",
+    "payments",
+    "ai",
+    "rag"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -47,6 +55,8 @@
     "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.0"
+    "typescript-eslint": "^8.53.0",
+    "viem": "^2.44.4",
+    "x402-fetch": "^1.1.0"
   }
 }
